@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 )
 
 type Token struct {
@@ -31,7 +30,7 @@ func (s *Service) GetTokenBySymbol(symbol string) (*Token, error) {
 	`, symbol).Scan(&token.Address, &token.Symbol, &token.Decimals, &token.Category, &token.CoingeckoID)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("token not found")
+		return nil, err
 	}
 	return &token, err
 }

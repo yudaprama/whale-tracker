@@ -1,11 +1,12 @@
 package service
 
 import (
+	"database/sql"
 	"whale-tracker/internal/db"
 )
 
 type Service struct {
-	db *db.DB
+	db *sql.DB
 }
 
 // New creates a new service

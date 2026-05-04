@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 )
 
@@ -15,10 +14,13 @@ type TokenPrice struct {
 
 // UpdateTokenPrice updates or inserts a token price
 func (s *Service) UpdateTokenPrice(price TokenPrice) error {
-	// UPSERT using INSERT OR REPLACE
 	_, err := s.db.Exec(`
 		INSERT INTO token_prices (token_address, price_usd, source, updated_at)
 		VALUES (?, ?, ?, ?)
+		ON CONFLICT (token_address) DO UPDATE SET
+			price_usd = excluded.price_usd,
+			source = excluded.source,
+			updated_at = excluded.updated_at
 	`, price.TokenAddress, price.PriceUSD, price.Source, price.UpdatedAt)
 	return err
 }
@@ -32,7 +34,7 @@ func (s *Service) GetLatestPrice(tokenAddress string) (*TokenPrice, error) {
 	`, tokenAddress).Scan(&price.TokenAddress, &price.PriceUSD, &price.Source, &price.UpdatedAt)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("price not found")
+		return nil, err
 	}
 	return &price, err
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 )
 
 type Whale struct {
@@ -30,7 +29,7 @@ func (s *Service) GetWhaleByAddress(address string) (*Whale, error) {
 	`, address).Scan(&whale.Address, &whale.Label, &whale.TelegramChatID, &whale.Active)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("whale not found")
+		return nil, err
 	}
 	return &whale, err
 }

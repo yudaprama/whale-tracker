@@ -17,7 +17,7 @@ type Balance struct {
 type Holding struct {
 	Whale        string
 	Token        string
-	Category     string
+	Category     sql.NullString
 	Balance      float64
 	TokenPrice   float64
 	USDValue     float64

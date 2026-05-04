@@ -1,0 +1,44 @@
+# Whale Tracker Configuration Example
+
+# RPC endpoints for fetching balances (will be rotated to avoid limits)
+rpc_urls:
+  - "https://ethereum.publicnode.com"
+  - "https://rpc.ankr.com/eth"
+  - "https://eth.llamarpc.com"
+  - "https://1rpc.io/eth"
+  - "https://ethereum.blockpi.network/v1/rpc/public"
+
+# Update interval (seconds)
+update_interval: 30
+
+# Whales to track
+whales:
+  - address: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE"
+    label: "Binance Cold Wallet"
+    telegram_chat_id: ""
+    active: true
+
+  - address: "0x2B8f1b796eE9Ad21Ce014197E58dAeeB8666D091"
+    label: "Bitfinex Cold Wallet"
+    telegram_chat_id: ""
+    active: true
+
+# Tokens to track
+tokens:
+  - address: "0x0000000000000000000000000000000000000000"
+    symbol: "ETH"
+    decimals: 18
+    category: "native"
+    coingecko_id: ""
+
+  - address: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+    symbol: "USDT"
+    decimals: 6
+    category: "stablecoin"
+    coingecko_id: "tether"
+
+  - address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    symbol: "USDC"
+    decimals: 6
+    category: "stablecoin"
+    coingecko_id: "usd-coin"

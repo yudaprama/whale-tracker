@@ -2,9 +2,8 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 
-	_ "github.com/marcboeker/go-duckdb"
+	_ "github.com/duckdb/duckdb-go/v2"
 )
 
 type DB struct {
@@ -15,22 +14,26 @@ type DB struct {
 func Open(path string) (*DB, error) {
 	db, err := sql.Open("duckdb", path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, err
+	}
+
+	// Verify connection
+	if err := db.Ping(); err != nil {
+		return nil, err
 	}
 
 	// Initialize schema
 	if err := initSchema(db); err != nil {
-		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+		return nil, err
 	}
 
 	return &DB{db}, nil
 }
 
 func initSchema(db *sql.DB) error {
-	// Read and execute schema
 	schema := `
 	-- WHALES
-	CREATE OR REPLACE TABLE IF NOT EXISTS whales (
+	CREATE TABLE IF NOT EXISTS whales (
 		address VARCHAR(42) PRIMARY KEY,
 		label VARCHAR(255) NOT NULL,
 		telegram_chat_id VARCHAR(50),
@@ -39,7 +42,7 @@ func initSchema(db *sql.DB) error {
 	);
 
 	-- TOKENS
-	CREATE OR REPLACE TABLE IF NOT EXISTS tokens (
+	CREATE TABLE IF NOT EXISTS tokens (
 		address VARCHAR(42) PRIMARY KEY,
 		symbol VARCHAR(32) NOT NULL,
 		decimals INT NOT NULL,
@@ -48,7 +51,7 @@ func initSchema(db *sql.DB) error {
 	);
 
 	-- TOKEN_PRICES
-	CREATE OR REPLACE TABLE IF NOT EXISTS token_prices (
+	CREATE TABLE IF NOT EXISTS token_prices (
 		token_address VARCHAR(42) PRIMARY KEY,
 		price_usd DOUBLE NOT NULL,
 		source VARCHAR(50),
@@ -56,7 +59,7 @@ func initSchema(db *sql.DB) error {
 	);
 
 	-- BALANCES
-	CREATE OR REPLACE TABLE IF NOT EXISTS balances (
+	CREATE TABLE IF NOT EXISTS balances (
 		whale_address VARCHAR(42) NOT NULL,
 		token_address VARCHAR(42) NOT NULL,
 		balance_decimal DOUBLE NOT NULL,
@@ -93,6 +96,7 @@ func initSchema(db *sql.DB) error {
 		b.balance_decimal,
 		b.prev_balance_decimal,
 		b.change_percent,
+		tp.price_usd as token_price,
 		(b.balance_decimal * tp.price_usd) as usd_value,
 		b.last_updated
 	FROM balances b
@@ -106,9 +110,4 @@ func initSchema(db *sql.DB) error {
 
 	_, err := db.Exec(schema)
 	return err
-}
-
-// Close closes the database connection
-func (db *DB) Close() error {
-	return db.DB.Close()
 }
