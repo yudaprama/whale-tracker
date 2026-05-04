@@ -1,150 +1,192 @@
 # 🐋 Whale Tracker
 
-Simple whale balance tracking with DuckDB and Go.
+Cryptocurrency whale wallet tracker with live blockchain data, powered by DuckDB and Go.
 
-## 📁 Project Structure
+## Features
+
+- 🔄 **Live balances** from Ethereum blockchain via RPC
+- 💰 **Price tracking** via Coingecko API
+- 📊 **Portfolio analytics** with SQL queries
+- 🚨 **Change detection** (>10% threshold)
+- 🔁 **RPC rotation** to avoid rate limits
+- 🌐 **Web UI** (DuckDB)
+
+## Project Structure
 
 ```
 whale-tracker/
-├── schema/
-│   └── 001_create_tables.sql    # Database schema
-├── sql/
-│   ├── 002_sample_data.sql      # Sample data
-│   └── queries.sql              # Useful queries
-├── cmd/server/
-│   └── main.go                  # Go application
+├── cmd/
+│   ├── server/main.go    # Main tracker service
+│   ├── ui/main.go        # DuckDB web UI
+│   └── query/main.go     # Query CLI
 ├── internal/
-│   ├── db/
-│   │   └── db.go                # Database connection & schema
-│   └── service/
-│       ├── service.go           # Service struct
-│       ├── whale.go             # Whale operations
-│       ├── token.go             # Token operations
-│       ├── price.go             # Price operations
-│       └── balance.go           # Balance operations
-├── data/                        # Database & exports
-├── go.mod
-└── README.md
+│   ├── db/db.go          # Database connection & schema
+│   └── service/          # Business logic
+│       ├── balance.go    # Balance operations
+│       ├── coingecko.go  # Price fetching
+│       ├── portfolio.go  # Portfolio queries
+│       ├── price.go      # Price operations
+│       ├── rpc.go        # Blockchain RPC
+│       ├── whale.go      # Whale operations
+│       └── token.go      # Token operations
+├── docs/queries.sql      # Reference queries
+├── config.yaml           # Configuration (whales, tokens, RPC)
+├── config.example.yaml   # Config template
+├── Makefile              # Commands
+└── go.mod
 ```
 
-## 🗂️ Database Schema
+## Quick Start
+
+### Prerequisites
+
+```bash
+# Install Go
+brew install go
+
+# Install DuckDB CLI (optional, for UI)
+brew install duckdb
+```
+
+### Setup
+
+```bash
+# Clone and install dependencies
+cd whale-tracker
+go mod tidy
+
+# Copy and edit config
+cp config.example.yaml config.yaml
+vim config.yaml  # Add your whales and tokens
+```
+
+### Run
+
+```bash
+# Build binaries
+make build
+
+# Run tracker (live data)
+make run
+# or: ./bin/whale-tracker
+
+# Start DuckDB web UI
+make ui
+# or: ./bin/whale-ui
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `make run` | Run tracker with live blockchain data |
+| `make ui` | Start DuckDB web UI |
+| `./bin/whale-query` | List available queries |
+| `./bin/whale-query portfolio` | Run portfolio query |
+| `./bin/whale-query holdings --json --out report.json` | Export to JSON |
+| `make build` | Build all binaries |
+| `make clean` | Clean artifacts and database |
+| `make unlock` | Release database locks |
+
+## Configuration
+
+Edit `config.yaml`:
+
+```yaml
+# RPC endpoints (rotated automatically)
+rpc_urls:
+  - "https://ethereum.publicnode.com"
+  - "https://rpc.ankr.com/eth"
+  - "https://eth.llamarpc.com"
+
+# Update interval (seconds)
+update_interval: 30
+
+# Whales to track
+whales:
+  - address: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE"
+    label: "Binance Cold Wallet"
+    active: true
+
+# Tokens to track
+tokens:
+  - address: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+    symbol: "USDT"
+    decimals: 6
+    category: "stablecoin"
+    coingecko_id: "tether"
+```
+
+## Database Schema
 
 | Table | Purpose |
 |-------|---------|
-| `whales` | Master list whale + telegram chat_id |
-| `tokens` | Master list token + coingecko_id |
-| `token_prices` | **Latest price** (single source of truth) |
-| `balances` | Current balance decimal (no price/USD) |
+| `whales` | Whale addresses + metadata |
+| `tokens` | Token addresses + Coingecko IDs |
+| `token_prices` | Latest prices (single source of truth) |
+| `balances` | Current balances + change tracking |
 
-## 🚀 Quick Start
+## Queries
 
-### Option A: Use SQL directly
-
-```bash
-# Install DuckDB
-brew install duckdb
-
-# Create database
-duckdb whale_tracker.duckdb < schema/001_create_tables.sql
-
-# Load sample data
-duckdb whale_tracker.duckdb < sql/002_sample_data.sql
-
-# Query
-duckdb whale_tracker.duckdb
-D SELECT * FROM latest_holdings;
-```
-
-### Option B: Use Go application
+### Via CLI
 
 ```bash
-# Install dependencies
-go mod tidy
-go get github.com/marcboeker/go-duckdb
+# Portfolio totals
+./bin/whale-query portfolio
 
-# Run
-go run cmd/server/main.go
+# All holdings
+./bin/whale-query holdings
 
-# Build
-go build -o whale-tracker cmd/server/main.go
-./whale-tracker
+# Big changes
+./bin/whale-query changes
+
+# Export to CSV
+./bin/whale-query tokens --csv --out tokens.csv
 ```
 
-## 📊 Common Queries (SQL)
+### Via Web UI
 
-```sql
--- All holdings with USD (auto-calculated)
-SELECT * FROM latest_holdings;
-
--- Total portfolio per whale
-SELECT whale, SUM(usd_value) as total_usd
-FROM latest_holdings
-GROUP BY whale;
-
--- Big changes (alert candidates)
-SELECT * FROM big_changes;
+```bash
+make ui
+# Open http://localhost:4213
+# Run any SQL query
 ```
 
-## 💻 Go Usage
+## Available Queries
 
-```go
-// Open database
-database, _ := db.Open("whale_tracker.duckdb")
-defer database.Close()
+| Query | Description |
+|-------|-------------|
+| `holdings` | All holdings with USD values |
+| `portfolio` | Total portfolio per whale |
+| `changes` | Big changes (>10%) |
+| `tokens` | Token distribution |
+| `prices` | Current token prices |
+| `whales` | Tracked whales |
 
-// Create service
-svc := service.New(database)
+## Output Formats
 
-// Insert whale
-svc.InsertWhale(service.Whale{
-    Address: "0x...",
-    Label: "Binance Cold Wallet",
-})
+```bash
+# Table (default)
+./bin/whale-query portfolio
 
-// Update price
-svc.UpdateTokenPrice(service.TokenPrice{
-    TokenAddress: "0x...",
-    PriceUSD: 3000.0,
-    Source: "coingecko",
-})
+# JSON
+./bin/whale-query portfolio --json
 
-// Update balance
-svc.UpdateBalance(service.Balance{
-    WhaleAddress: "0x...",
-    TokenAddress: "0x...",
-    BalanceDecimal: 50000.0,
-})
+# CSV
+./bin/whale-query portfolio --csv
 
-// Get latest holdings
-holdings, _ := svc.GetLatestHoldings()
+# Export to file
+./bin/whale-query portfolio --json --out report.json
 ```
 
-## 🔄 Workflow
+## Tech Stack
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Price Update Loop                         │
-│                    (setiap 5-10 menit)                       │
-├─────────────────────────────────────────────────────────────┤
-│  1. Fetch price dari Coingecko API                          │
-│  2. UPSERT token_prices (replace existing)                   │
-│  → USD value di latest_holdings auto-update!                │
-└─────────────────────────────────────────────────────────────┘
+- **Go** - Application logic
+- **DuckDB** - Database (single file, embedded)
+- **go-ethereum** - Ethereum RPC client
+- **Coingecko API** - Price data
+- **YAML** - Configuration
 
-┌─────────────────────────────────────────────────────────────┐
-│                    Balance Update Loop                       │
-│                    (setiap 30 menit)                         │
-├─────────────────────────────────────────────────────────────┤
-│  1. Cek balance whale × token via RPC                      │
-│  2. UPDATE balances (set prev_balance, change_percent)      │
-│  3. USD value auto-update via VIEW (join token_prices)      │
-│  4. Kirim Telegram alert jika change > 10%                  │
-└─────────────────────────────────────────────────────────────┘
-```
+## License
 
-## 🔗 Resources
-
-- DuckDB Docs: https://duckdb.org/docs/
-- DuckDB Go: https://github.com/marcboeker/go-duckdb
-- Coingecko API: https://www.coingecko.com/en/api
-- Whale Addresses: https://www.whale-alert.io/
+MIT
