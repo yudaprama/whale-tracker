@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/aquasecurity/table"
 	_ "github.com/duckdb/duckdb-go/v2"
 )
 
@@ -206,44 +207,20 @@ func parseRows(rows *sql.Rows) (*QueryResult, error) {
 }
 
 func formatTable(results *QueryResult) string {
-	var sb strings.Builder
+	t := table.New(os.Stdout)
+	t.SetRowLines(false)
+	t.SetHeaders(results.Columns...)
 
-	// Calculate column widths
-	widths := make([]int, len(results.Columns))
-	for i, col := range results.Columns {
-		widths[i] = len(col)
-	}
 	for _, row := range results.Rows {
+		rowStr := make([]string, len(results.Columns))
 		for i, col := range results.Columns {
-			val := fmt.Sprintf("%v", row[col])
-			if len(val) > widths[i] {
-				widths[i] = len(val)
-			}
+			rowStr[i] = fmt.Sprintf("%v", row[col])
 		}
+		t.AddRow(rowStr...)
 	}
+	t.Render()
 
-	// Header
-	for i, col := range results.Columns {
-		sb.WriteString(fmt.Sprintf("%-*s", widths[i]+2, col))
-	}
-	sb.WriteString("\n")
-
-	// Separator
-	for _, w := range widths {
-		sb.WriteString(strings.Repeat("-", w+2))
-	}
-	sb.WriteString("\n")
-
-	// Rows
-	for _, row := range results.Rows {
-		for i, col := range results.Columns {
-			val := fmt.Sprintf("%v", row[col])
-			sb.WriteString(fmt.Sprintf("%-*s", widths[i]+2, val))
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
+	return ""
 }
 
 func formatJSON(results *QueryResult) string {
@@ -272,9 +249,9 @@ func formatCSV(results *QueryResult) string {
 }
 
 func listQueries() {
-	fmt.Println("🐋 Whale Tracker Queries")
-	fmt.Println("\nUsage: make query <name> [flags]")
-	fmt.Println("\nAvailable queries:")
+	t := table.New(os.Stdout)
+	t.SetRowLines(false)
+	t.SetHeaders("Query", "Description")
 
 	names := make([]string, 0, len(queries))
 	for name := range queries {
@@ -284,10 +261,12 @@ func listQueries() {
 
 	for _, name := range names {
 		q := queries[name]
-		fmt.Printf("  %-12s %s\n", name, q.Description)
+		t.AddRow(name, q.Description)
 	}
+	t.Render()
 
-	fmt.Println("\nFlags:")
+	fmt.Println("\nUsage: ./bin/whale-query <name> [flags]")
+	fmt.Println("Flags:")
 	fmt.Println("  --json, -j    Output as JSON")
 	fmt.Println("  --csv, -c     Output as CSV")
 	fmt.Println("  --out FILE    Write to file")

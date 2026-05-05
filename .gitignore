@@ -6,8 +6,17 @@ whale-ui
 # Config (sensitive data)
 config.yaml
 
+# Environment variables (API keys)
+.env
+
 # Claude
 .claude/
+
+# Database
+data/*.duckdb
+data/*.duckdb.wal
+report.json
+report.csv
 
 # Go
 *.exe

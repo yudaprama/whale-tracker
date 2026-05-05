@@ -9,6 +9,7 @@ Cryptocurrency whale wallet tracker with live blockchain data, powered by DuckDB
 - 📊 **Portfolio analytics** with SQL queries
 - 🚨 **Change detection** (>10% threshold)
 - 🔁 **RPC rotation** to avoid rate limits
+- 🔍 **Top holders discovery** via RPC scan (free) or Bitquery API
 - 🌐 **Web UI** (DuckDB)
 
 ## Project Structure
@@ -16,9 +17,11 @@ Cryptocurrency whale wallet tracker with live blockchain data, powered by DuckDB
 ```
 whale-tracker/
 ├── cmd/
-│   ├── server/main.go    # Main tracker service
-│   ├── ui/main.go        # DuckDB web UI
-│   └── query/main.go     # Query CLI
+│   ├── server/main.go     # Main tracker service
+│   ├── ui/main.go         # DuckDB web UI
+│   ├── query/main.go      # Query CLI
+│   ├── bitquery/main.go   # Bitquery token holders CLI
+│   └── rpc-holders/main.go # RPC token holders scanner (free)
 ├── internal/
 │   ├── db/db.go          # Database connection & schema
 │   └── service/          # Business logic
@@ -55,9 +58,13 @@ brew install duckdb
 cd whale-tracker
 go mod tidy
 
-# Copy and edit config
+# Copy config and env templates
 cp config.example.yaml config.yaml
+cp .env.example .env
+
+# Edit files
 vim config.yaml  # Add your whales and tokens
+vim .env         # Add BITQUERY_API_KEY
 ```
 
 ### Run
@@ -84,6 +91,8 @@ make ui
 | `./bin/whale-query` | List available queries |
 | `./bin/whale-query portfolio` | Run portfolio query |
 | `./bin/whale-query holdings --json --out report.json` | Export to JSON |
+| `./bin/whale-rpc-holders <token_address> [options]` | Scan token holders via RPC (free) |
+| `./bin/whale-bitquery <token_address> [limit]` | Fetch top token holders (uses .env) |
 | `make build` | Build all binaries |
 | `make clean` | Clean artifacts and database |
 | `make unlock` | Release database locks |
@@ -179,12 +188,80 @@ make ui
 ./bin/whale-query portfolio --json --out report.json
 ```
 
+## Token Holders Discovery
+
+Two options available:
+
+### 1. RPC Scan (Free, No API Key) ⭐ Recommended
+
+```bash
+# Display holders only
+./bin/whale-rpc-holders 0x6982508145454Ce325dDbE47a25d4ec3d2311933 --symbol PEPE
+
+# Add new holders to config
+./bin/whale-rpc-holders 0x6982508145454Ce325dDbE47a25d4ec3d2311933 --symbol PEPE --upsert
+
+# Update labels of existing whales (no new entries)
+./bin/whale-rpc-holders 0x6982508145454Ce325dDbE47a25d4ec3d2311933 --symbol PEPE --update-labels
+
+# Scan more blocks for better accuracy
+./bin/whale-rpc-holders 0x6982508145454Ce325dDbE47a25d4ec3d2311933 --blocks 50000 --symbol PEPE
+```
+
+**Options:**
+- `--symbol, -s` - Token symbol (default: TOKEN)
+- `--blocks, -b` - Number of blocks to scan (default: 10000)
+- `--upsert, -u` - Add new holders + update existing labels
+- `--update-labels, -U` - Update labels only (no new entries)
+
+**Note:** RPC scan captures holders active in recent blocks only. For complete historical data, use Bitquery API.
+
+### 2. Bitquery API (Requires API Key)
+
+```bash
+# 1. Add API key to .env file:
+echo "BITQUERY_API_KEY=your_api_key_here" > .env
+
+# 2. Display holders only:
+./bin/whale-bitquery 0x6982508145454Ce325dDbE47a25d4ec3d2311933 50
+
+# 3. Add new holders:
+./bin/whale-bitquery 0x6982508145454Ce325dDbE47a25d4ec3d2311933 50 --upsert
+
+# 4. Update existing labels only:
+./bin/whale-bitquery 0x6982508145454Ce325dDbE47a25d4ec3d2311933 --update-labels
+```
+
+**Options:**
+- `--upsert, -u` - Add new holders + update existing labels
+- `--update-labels, -U` - Update labels only (no new entries)
+
+### Label Format
+
+Both methods use smart labeling based on holding percentage:
+
+| Percentage | Label | Example |
+|------------|-------|---------|
+| ≥30% | Mega Whale | `PEPE Mega Whale #1` |
+| ≥10% | Whale | `PEPE Whale #2` |
+| ≥5% | Dolphin | `PEPE Dolphin #3` |
+| ≥1% | Fish | `PEPE Fish #4` |
+| <1% | Holder | `PEPE Holder #5` |
+
+**Exchange Detection:**
+Known exchanges are automatically labeled:
+- `PEPE Binance` (not `0x... Binance`)
+- `PEPE Bitfinex`
+- `PEPE Circle`
+- etc.
+
 ## Tech Stack
 
 - **Go** - Application logic
 - **DuckDB** - Database (single file, embedded)
 - **go-ethereum** - Ethereum RPC client
 - **Coingecko API** - Price data
+- **Bitquery API** - Token holders discovery
 - **YAML** - Configuration
 
 ## License
